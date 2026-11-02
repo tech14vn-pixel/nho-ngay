@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nhớ Ngày – Ngày được chia sẻ</title>
+<meta property="og:title" content="Người nhà gửi bạn một ngày cần nhớ">
+<meta property="og:description" content="Mở bằng app Nhớ Ngày để thêm vào lịch, khỏi phải nhập lại.">
+<style>
+:root{--paper:#F6F0E5;--card:#FFFCF6;--ink:#2B211C;--soft:#6B5D52;--line:#E6DACA;--accent:#B3261E;--gold:#E2B65C;--gold2:#F3D58C;--cream:#F7EBD8;--cream2:#CDB9A3}
+@media (prefers-color-scheme:dark){:root{--paper:#13100E;--card:#201A16;--ink:#F2E8DA;--soft:#B8AA9B;--line:#33291F;--accent:#E25B4C}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:28px 16px 56px}
+.brand{display:flex;align-items:center;gap:8px;color:var(--accent);text-transform:uppercase;letter-spacing:.14em;font-size:12px;font-weight:700}
+.hero{position:relative;overflow:hidden;margin-top:14px;border-radius:26px;padding:22px 20px 26px;color:var(--cream);
+  background:linear-gradient(135deg,#9E2A20 0%,#5A1410 55%,#2A0D0A 100%);box-shadow:0 18px 40px -22px rgba(90,20,16,.7)}
+.hero::before{content:"";position:absolute;inset:7px;border:1px solid rgba(226,182,92,.38);border-radius:20px;pointer-events:none}
+.moon{position:absolute;right:-26px;top:-26px;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#FFF1C9 0 0,transparent 0),
+  radial-gradient(circle,transparent 31px,rgba(226,182,92,.26) 32px 33px,transparent 34px 47px,rgba(226,182,92,.17) 48px 49px,transparent 50px 63px,rgba(226,182,92,.1) 64px 65px,transparent 66px)}
+.moon::after{content:"";position:absolute;left:44px;top:44px;width:62px;height:62px;border-radius:50%;
+  background:radial-gradient(circle at 38% 36%,#FFF1C9,#F3D58C 35%,#E2B65C 65%,#A8742A)}
+.waves{position:absolute;left:-10px;right:-10px;bottom:-22px;height:44px;opacity:.5;
+  background:radial-gradient(circle at 22px 22px,transparent 5px,rgba(226,182,92,.45) 6px 7px,transparent 8px 12px,rgba(226,182,92,.4) 13px 14px,transparent 15px 19px,rgba(226,182,92,.5) 20px 21px,transparent 22px);
+  background-size:44px 44px;background-repeat:repeat-x}
+.eyebrow{color:var(--gold2);text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:700;position:relative}
+h1{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:30px;line-height:1.2;margin:8px 0 4px;position:relative;max-width:80%}
+.sub{color:var(--cream2);position:relative;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;margin-top:16px;overflow:hidden}
+.row{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .k{width:96px;flex:none;color:var(--soft);font-size:14px}
+.row .v{flex:1;white-space:pre-wrap;word-break:break-word}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;margin-top:18px;border-radius:16px;border:0;width:100%;
+  background:var(--accent);color:#fff;font:600 17px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-decoration:none;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);margin-top:10px}
+.muted{color:var(--soft);font-size:14px}
+.steps{padding-left:20px;margin:8px 0 0}
+.steps li{margin:4px 0}
+.error{display:none}
+a{color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">✦ Nhớ Ngày</div>
+
+  <section id="ok" style="display:none">
+    <div class="hero">
+      <div class="moon"></div><div class="waves"></div>
+      <div class="eyebrow">Người nhà gửi cho bạn</div>
+      <h1 id="title">…</h1>
+      <p class="sub" id="when"></p>
+    </div>
+
+    <div class="card" id="rows"></div>
+
+    <a class="btn" id="open" href="#">Mở bằng app Nhớ Ngày</a>
+    <button class="btn ghost" id="copy" type="button">Sao chép link</button>
+
+    <div class="card" style="padding:14px 16px">
+      <strong>Chưa có app?</strong>
+      <ol class="steps muted">
+        <li id="store-step">Tải <strong>Nhớ Ngày</strong> trên App Store.</li>
+        <li>Quay lại tin nhắn và chạm vào link này lần nữa.</li>
+        <li>Nếu link không tự mở app: bấm <em>Sao chép link</em>, vào Nhớ Ngày → Cài đặt → <em>Nhận ngày từ người nhà</em> → dán.</li>
+      </ol>
+    </div>
+    <p class="muted" style="margin-top:18px">Nội dung nằm ngay trong đường link và chỉ được đọc trên máy của bạn, không gửi lên máy chủ nào.</p>
+  </section>
+
+  <section id="bad" class="error">
+    <div class="hero"><div class="moon"></div><div class="waves"></div>
+      <div class="eyebrow">Nhớ Ngày</div>
+      <h1>Link chưa đầy đủ</h1>
+      <p class="sub">Có thể tin nhắn bị cắt mất một phần. Nhờ người gửi chia sẻ lại từ app Nhớ Ngày.</p>
+    </div>
+  </section>
+
+  <p class="muted" style="margin-top:36px;text-align:center">Nhớ Ngày · lịch âm dương cho gia đình Việt · <a href="https://truong.pro.vn">truong.pro.vn</a></p>
+</main>
+<div class="toast" id="toast">Đã sao chép</div>
+<script>
+(function () {
+  // Điền link App Store sau khi app được duyệt, ví dụ 'https://apps.apple.com/vn/app/id1234567890'.
+  var APP_STORE_URL = '';
+
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  function decode(code) {
+    var bytes = [], buffer = 0, bits = 0;
+    code = code.replace(/\+/g, '-').replace(/\//g, '_').replace(/[=\s]/g, '');
+    for (var i = 0; i < code.length; i++) {
+      var v = B64.indexOf(code[i]);
+      if (v < 0) throw new Error('bad');
+      buffer = ((buffer << 6) | v) & 0xffffff; bits += 6;
+      if (bits >= 8) { bits -= 8; bytes.push((buffer >> bits) & 255); }
+    }
+    return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  var KIND = { deathAnniversary: 'Giỗ', birthday: 'Sinh nhật, kỷ niệm', document: 'Giấy tờ và xe', routine: 'Việc trong tuần', chime: 'Chuông giờ', appointment: 'Hẹn một lần' };
+  var WD = ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+
+  var match = location.hash.match(/d=([A-Za-z0-9_\-+/=]+)/) || location.search.match(/d=([A-Za-z0-9_\-+/=]+)/);
+  var data = null;
+  try { data = match ? JSON.parse(decode(match[1])) : null; } catch (e) { data = null; }
+  if (!data || !KIND[data.k]) { document.getElementById('bad').style.display = 'block'; return; }
+  var code = match[1];
+
+  var kind = data.k;
+  var name = data.personName || '';
+  var title = data.title || '';
+  if (kind === 'deathAnniversary') title = ('Giỗ ' + (name || data.relation || '')).trim();
+  else if (kind === 'birthday') title = ((data.relation && data.relation !== 'Sinh nhật') ? data.relation : 'Sinh nhật') + (name ? ' ' + name : '');
+  if (!title.trim()) title = KIND[kind];
+
+  var lunar = data.calendar === 'lunar' || (kind === 'deathAnniversary' && data.calendar !== 'solar');
+  var when = '';
+  if (lunar && data.day && data.month) when = 'Ngày ' + data.day + ' tháng ' + data.month + (data.leapMonth ? ' nhuận' : '') + ' âm lịch';
+  else if (data.anchorDate) when = 'Ngày ' + data.anchorDate.split('-').reverse().join('/');
+  else if (data.day && data.month) when = 'Ngày ' + data.day + '/' + data.month + ' dương lịch';
+  if (kind === 'deathAnniversary' || kind === 'birthday') when += when ? ', hằng năm' : 'Hằng năm';
+  if (kind === 'routine' && Array.isArray(data.weekdays)) when = data.weekdays.map(function (d) { return WD[d]; }).join(' ');
+
+  document.title = title + ' – Nhớ Ngày';
+  document.getElementById('title').textContent = title;
+  document.getElementById('when').textContent = when;
+
+  var rows = [['Loại', KIND[kind]]];
+  if (name && kind !== 'deathAnniversary' && kind !== 'birthday') rows.push(['Tên', name]);
+  if (kind === 'deathAnniversary' && name) rows.push(['Người mất', name]);
+  if (data.relation && kind !== 'birthday') rows.push(['Quan hệ', data.relation]);
+  if (data.year) rows.push([kind === 'deathAnniversary' ? 'Năm mất' : 'Năm', data.year]);
+  if (data.mourningRites) rows.push(['Lễ cúng', 'Nhắc thêm lễ 49 ngày và 100 ngày']);
+  if (data.time) rows.push(['Giờ nhắc', data.time]);
+  if (data.note) rows.push(['Ghi chú', data.note]);
+  document.getElementById('rows').innerHTML = rows.map(function (r) {
+    return '<div class="row"><div class="k">' + esc(r[0]) + '</div><div class="v">' + esc(r[1]) + '</div></div>';
+  }).join('');
+
+  var deep = 'nhongay://import?d=' + code;
+  document.getElementById('open').href = deep;
+  if (APP_STORE_URL) document.getElementById('store-step').innerHTML = 'Tải <a href="' + APP_STORE_URL + '">Nhớ Ngày trên App Store</a>.';
+
+  document.getElementById('copy').addEventListener('click', function () {
+    var text = location.href;
+    var done = function () { var t = document.getElementById('toast'); t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { prompt('Sao chép link:', text); });
+    else prompt('Sao chép link:', text);
+  });
+
+  document.getElementById('ok').style.display = 'block';
+})();
+</script>
+</body>
+</html>
