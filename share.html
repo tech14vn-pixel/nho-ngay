@@ -106,6 +106,43 @@ a{color:var(--accent)}
   var KIND = { deathAnniversary: 'Giỗ', birthday: 'Sinh nhật, kỷ niệm', document: 'Giấy tờ và xe', routine: 'Việc trong tuần', chime: 'Chuông giờ', appointment: 'Hẹn một lần' };
   var WD = ['', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
+  // Gia phả dòng họ: #g=… (nén zlib). Hiện tên họ nếu trình duyệt giải nén được, rồi mở app.
+  var gmatch = location.hash.match(/[#&]g=([A-Za-z0-9_\-+/=]+)/) || location.search.match(/[?&]g=([A-Za-z0-9_\-+/=]+)/);
+  if (gmatch) {
+    var gcode = gmatch[1];
+    document.title = 'Gia phả dòng họ – Vận Ký';
+    document.getElementById('title').textContent = 'Gia phả dòng họ';
+    document.getElementById('when').textContent = 'Người nhà gửi bạn cả cây gia phả';
+    document.getElementById('rows').innerHTML = '<div class="row"><div class="k">Mở bằng</div><div class="v">App Vận Ký (Nhớ Ngày)</div></div>';
+    document.getElementById('open').href = 'nhongay://gia-pha-nhan?g=' + gcode;
+    if (APP_STORE_URL) document.getElementById('store-step').innerHTML = 'Tải <a href="' + APP_STORE_URL + '">Vận Ký trên App Store</a>.';
+    document.getElementById('copy').addEventListener('click', function () {
+      var text = location.href;
+      var done = function () { var t = document.getElementById('toast'); t.classList.add('show'); setTimeout(function () { t.classList.remove('show'); }, 1600); };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { prompt('Sao chép link:', text); });
+      else prompt('Sao chép link:', text);
+    });
+    document.getElementById('ok').style.display = 'block';
+    try {
+      var clean = gcode.replace(/\+/g, '-').replace(/\//g, '_').replace(/[=\s]/g, '');
+      var bytes = [], buffer = 0, bits = 0;
+      for (var gi = 0; gi < clean.length; gi++) {
+        buffer = ((buffer << 6) | B64.indexOf(clean[gi])) & 0xffffff; bits += 6;
+        if (bits >= 8) { bits -= 8; bytes.push((buffer >> bits) & 255); }
+      }
+      if (window.DecompressionStream) {
+        new Response(new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new DecompressionStream('deflate'))).text().then(function (text) {
+          var tree = JSON.parse(text).tree;
+          var count = Object.keys(tree.people || {}).length;
+          document.getElementById('title').textContent = tree.name;
+          document.getElementById('when').textContent = count + ' người trong cây gia phả';
+          document.title = tree.name + ' – Gia phả Vận Ký';
+        }).catch(function () {});
+      }
+    } catch (e) {}
+    return;
+  }
+
   var match = location.hash.match(/d=([A-Za-z0-9_\-+/=]+)/) || location.search.match(/d=([A-Za-z0-9_\-+/=]+)/);
   var data = null;
   try { data = match ? JSON.parse(decode(match[1])) : null; } catch (e) { data = null; }
