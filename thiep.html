@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Thiệp mời</title>
+<meta property="og:title" content="Thiệp mời">
+<meta property="og:description" content="Mở để xem ngày giờ, địa chỉ và đường đi.">
+<meta name="theme-color" content="#8E1A1A">
+<style>
+:root{--paper:#F4EBDD;--card:#FFFCF6;--ink:#2B211C;--soft:#6B5D52;--line:#E6DACA;--accent:#9E1B1B;--gold:#B8893B}
+@media (prefers-color-scheme:dark){:root{--paper:#15110E;--card:#211A15;--ink:#F2E8DA;--soft:#B8AA9B;--line:#3A2F25;--accent:#E0675A;--gold:#D9B25F}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+main{max-width:460px;margin:0 auto;padding:20px 16px 48px}
+.card{display:block;width:100%;height:auto;filter:drop-shadow(0 10px 24px rgba(70,25,10,.28));border-radius:8px}
+.count{margin:16px auto 0;text-align:center;font-weight:700;color:var(--accent);letter-spacing:.02em}
+.box{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.k{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:700}
+.v{margin-top:2px}
+.row+.row{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.note{font-style:italic;color:var(--soft);border-left:3px solid var(--gold);padding-left:12px;margin:0}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;border-radius:14px;font-weight:600;text-decoration:none;border:0;font-size:15px;cursor:pointer;font-family:inherit}
+.primary{background:var(--accent);color:#fff}
+.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.wide{grid-column:1/-1}
+.save{margin-top:22px;border:1.5px dashed var(--line);border-radius:18px;padding:16px;text-align:center;color:var(--soft);font-size:14px}
+.save a{color:var(--accent);font-weight:600}
+.bad{display:none;text-align:center;padding:60px 10px;color:var(--soft)}
+footer{margin-top:26px;text-align:center;font-size:12px;color:var(--soft)}
+</style>
+</head>
+<body>
+<main>
+  <div id="ok" style="display:none">
+    <div id="art"></div>
+    <div class="count" id="count"></div>
+    <div class="box" id="info"></div>
+    <div class="btns" id="btns"></div>
+    <div class="save" id="save" style="display:none"></div>
+    <footer>Thiệp tạo bằng Nhớ Ngày · lịch âm và nhắc giỗ</footer>
+  </div>
+  <div class="bad" id="bad">Đường link thiệp bị thiếu hoặc bị cắt mất một phần.<br>Nhờ người gửi chia sẻ lại nhé.</div>
+</main>
+<script>
+(function () {
+  var SHARE_PAGE = 'share.html';
+  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  function decode(code) {
+    var bytes = [], buffer = 0, bits = 0;
+    code = code.replace(/\+/g, '-').replace(/\//g, '_').replace(/[=\s]/g, '');
+    for (var i = 0; i < code.length; i++) {
+      var v = B64.indexOf(code[i]);
+      if (v < 0) throw new Error('bad');
+      buffer = ((buffer << 6) | v) & 0xffffff; bits += 6;
+      if (bits >= 8) { bits -= 8; bytes.push((buffer >> bits) & 255); }
+    }
+    return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
+  }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function str(v, max) { return typeof v === 'string' ? v.slice(0, max || 200) : ''; }
+
+  var match = location.hash.match(/t=([A-Za-z0-9_\-]+)/);
+  var c = null;
+  try { c = match && match[1].length < 6000 ? JSON.parse(decode(match[1])) : null; } catch (e) { c = null; }
+  if (!c || typeof c.d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(c.d)) { document.getElementById('bad').style.display = 'block'; return; }
+  // Mã gọn (src/domain/invite.ts): chỉ có dữ liệu gốc, phần còn lại tính ở đây.
+  var r = c;
+  c = { date: r.d, style: r.s, lead: str(r.l), honor: str(r.h), name: str(r.n), sub: str(r.u), lunarLine: str(r.L), host: str(r.H), address: str(r.a), phone: str(r.p, 20), note: str(r.o, 300), sign: str(r.g), time: /^\d{2}:\d{2}$/.test(r.t) ? r.t : '' };
+  c.bigDay = Number(r.b) || '';
+  c.count = Number(r.c) || 0;
+  var style = c.style === 'sinhnhat' || c.style === 'mungtho' ? c.style : 'gio';
+  var WEEK = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  var MONTHS = ['Giêng', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'Tám', 'Chín', 'Mười', 'Mười Một', 'Chạp'];
+  var dp = c.date.split('-').map(Number);
+  var dObj = new Date(dp[0], dp[1] - 1, dp[2]);
+  function two(n) { return String(n).padStart(2, '0'); }
+  var monthName = c.lunarLine.replace(/^tháng /, '').replace(/( nhuận)? năm .*$/, '');
+  var lunarMonth = MONTHS.indexOf(monthName) + 1;
+  var leap = / nhuận /.test(c.lunarLine) ? ' nhuận' : '';
+  var hour = Number((c.time || '10').split(':')[0]);
+  var part = hour < 11 ? 'sáng' : hour < 13 ? 'trưa' : hour < 18 ? 'chiều' : 'tối';
+  c.weekday = WEEK[dObj.getDay()];
+  c.eyebrow = style === 'sinhnhat' ? 'MỜI CẢ NHÀ ĐẾN DỰ' : 'KÍNH MỜI';
+  c.dayCaption = c.bigDay && c.bigDay <= 10 ? 'MÙNG' : 'NGÀY';
+  c.clock = c.time ? (c.time + ' ' + part).toUpperCase() : '';
+  c.solarLine = 'nhằm ngày ' + dp[2] + ' tháng ' + dp[1] + ' năm ' + dp[0] + ' dương lịch';
+  c.dateLine = c.weekday + ' · ' + two(dp[2]) + '/' + two(dp[1]) + '/' + dp[0];
+  c.dateSub = (c.time ? c.time + ' · ' : '') + (lunarMonth ? 'nhằm ngày ' + c.bigDay + '/' + lunarMonth + leap + ' âm lịch' : '');
+  c.placeLabel = 'TẠI';
+  c.countUnit = r.y === 1 ? 'NĂM' : 'TUỔI';
+  if (!c.sign) c.sign = style === 'gio' ? 'Gia đình con cháu kính báo' : style === 'mungtho' ? 'Con cháu kính mời' : 'Mong cả nhà đến chung vui!';
+  c.m = '';
+  if (r.m && typeof r.m === 'object') {
+    var bytes = new TextEncoder().encode(JSON.stringify(r.m)), out = '';
+    for (var j = 0; j < bytes.length; j += 3) {
+      var n = (bytes[j] << 16) | ((bytes[j + 1] || 0) << 8) | (bytes[j + 2] || 0);
+      out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63];
+      if (j + 1 < bytes.length) out += B64[(n >> 6) & 63];
+      if (j + 2 < bytes.length) out += B64[n & 63];
+    }
+    c.m = out;
+  }
+
+  function fit(text, max, room, factor) { return Math.max(12, Math.min(max, (room || 330) / Math.max(1, text.length * (factor || 0.56)))); }
+  function wrap(text, per, lines) {
+    var words = text.split(/\s+/).filter(Boolean), out = [], cur = '';
+    words.forEach(function (w) { if (cur && (cur + ' ' + w).length > per) { out.push(cur); cur = w; } else cur = cur ? cur + ' ' + w : w; });
+    if (cur) out.push(cur);
+    if (out.length > lines) { out = out.slice(0, lines); out[lines - 1] = out[lines - 1].slice(0, per - 1) + '…'; }
+    return out;
+  }
+  function t(x, y, size, fill, text, extra) {
+    return '<text x="' + x + '" y="' + y + '" font-size="' + size + '" fill="' + fill + '" text-anchor="middle" ' + (extra || '') + '>' + esc(text) + '</text>';
+  }
+  var SERIF = "font-family=\"'Noto Serif','Times New Roman',Georgia,serif\"";
+  var SANS = "font-family=\"system-ui,-apple-system,'Segoe UI',Roboto,sans-serif\"";
+  var place = c.host ? (/^(nhà|tại|ở|quán)(\s|$)/i.test(c.host) ? c.host : 'nhà ' + c.host) : '';
+  var placeText = [place, c.address].filter(Boolean).join(', ');
+
+  function corner(x, y, sx, sy, col) {
+    return '<g transform="translate(' + x + ' ' + y + ') scale(' + sx + ' ' + sy + ')" fill="none" stroke="' + col + '" stroke-width="1.6" stroke-linecap="round">' +
+      '<path d="M0 0 H40 M0 0 V40"/><path d="M8 8 H26 a7 7 0 1 1 -7 7 a3.5 3.5 0 1 1 3.5 -3.5"/><path d="M8 8 V26 a7 7 0 1 0 7 -7 a3.5 3.5 0 1 0 -3.5 3.5"/>' +
+      '<circle cx="8" cy="8" r="2" fill="' + col + '" stroke="none"/></g>';
+  }
+  function divider(y, col) { return '<g transform="translate(200 ' + y + ')"><path d="M-70 0 H-8 M8 0 H70" stroke="url(#gold)" stroke-width="1.2"/><rect x="-4" y="-4" width="8" height="8" transform="rotate(45)" fill="' + col + '"/></g>'; }
+
+  function formal() {
+    var tho = style === 'mungtho';
+    var P = tho
+      ? { paper: ['#A82424', '#8A1A1B', '#6E1012'], frame: '#5E0C0E', orn: '#E8C877', title: '#FBE7B5', ink: '#FBE7B5', soft: '#E8C987', accent: '#F1D48E', rule: '#E8C987' }
+      : { paper: ['#FBF3E2', '#F4E4C4', '#E9D2A6'], frame: '#8E1A1A', orn: '#9E1B1B', title: '#8E1A1A', ink: '#5A3B22', soft: '#6B4A2B', accent: '#9E1B1B', rule: '#9E1B1B' };
+    var s = '<defs><radialGradient id="paper" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="' + P.paper[0] + '"/><stop offset=".7" stop-color="' + P.paper[1] + '"/><stop offset="1" stop-color="' + P.paper[2] + '"/></radialGradient>' +
+      '<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C9A257"/><stop offset=".5" stop-color="#F0D489"/><stop offset="1" stop-color="#A9802F"/></linearGradient></defs>' +
+      '<rect width="400" height="500" rx="6" fill="' + P.frame + '"/><rect x="8" y="8" width="384" height="484" rx="3" fill="url(#paper)"/>' +
+      '<rect x="18" y="18" width="364" height="464" fill="none" stroke="url(#gold)" stroke-width="1.6"/><rect x="23" y="23" width="354" height="454" fill="none" stroke="url(#gold)" stroke-width=".6"/>' +
+      corner(30, 30, 1, 1, P.orn) + corner(370, 30, -1, 1, P.orn) + corner(30, 470, 1, -1, P.orn) + corner(370, 470, -1, -1, P.orn);
+    var nameSize = fit(c.name, tho ? 27 : 29);
+    if (tho) {
+      s += t(200, 58, 13, P.accent, c.eyebrow, SERIF + ' font-weight="700" letter-spacing="6"') + t(200, 78, 12.5, P.soft, c.lead, SERIF + ' font-style="italic"') +
+        '<circle cx="200" cy="128" r="42" fill="#5E0C0E" stroke="url(#gold)" stroke-width="2"/><circle cx="200" cy="128" r="35" fill="none" stroke="url(#gold)" stroke-width=".7" stroke-dasharray="1 3"/>' +
+        t(200, 141, 36, 'url(#gold)', 'Thọ', SERIF + ' font-weight="700" font-style="italic"');
+      if (c.honor) s += t(200, 194, 13, P.soft, c.honor, SERIF);
+      s += t(200, c.honor ? 222 : 214, nameSize, P.title, c.name, SERIF + ' font-weight="700"');
+      if (c.sub) s += t(200, c.honor ? 244 : 236, 11.5, P.soft, c.sub, SERIF);
+    } else {
+      s += '<g transform="translate(200 66)"><path d="M0 -26 C10 -14 10 -2 0 6 C-10 -2 -10 -14 0 -26 Z" fill="#B3262A"/><path d="M0 6 C-4 -8 -14 -16 -26 -14 C-24 -2 -14 6 0 6 Z" fill="#C8433C"/><path d="M0 6 C4 -8 14 -16 26 -14 C24 -2 14 6 0 6 Z" fill="#C8433C"/><path d="M0 6 C-12 -2 -26 -2 -36 4 C-28 12 -12 12 0 6 Z" fill="#D9675A"/><path d="M0 6 C12 -2 26 -2 36 4 C28 12 12 12 0 6 Z" fill="#D9675A"/><path d="M-44 14 Q0 2 44 14" fill="none" stroke="url(#gold)" stroke-width="1.6"/></g>' +
+        t(200, 110, 13, P.accent, c.eyebrow, SERIF + ' font-weight="700" letter-spacing="6"') + t(200, 132, 12.5, P.soft, c.lead, SERIF + ' font-style="italic"');
+      if (c.honor) s += t(200, 156, 13, P.soft, c.honor, SERIF);
+      s += t(200, c.honor ? 186 : 176, nameSize, P.title, c.name, SERIF + ' font-weight="700"');
+      if (c.sub) s += t(200, c.honor ? 208 : 200, 11.5, P.soft, c.sub, SERIF);
+    }
+    var wd = c.weekday.toUpperCase();
+    s += '<g transform="translate(0 ' + (tho ? 44 : 0) + ')">' + divider(222, P.accent) +
+      '<line x1="148" y1="240" x2="148" y2="298" stroke="url(#gold)"/><line x1="252" y1="240" x2="252" y2="298" stroke="url(#gold)"/>' +
+      '<line x1="62" y1="256" x2="138" y2="256" stroke="' + P.rule + '" stroke-width=".8"/><line x1="62" y1="284" x2="138" y2="284" stroke="' + P.rule + '" stroke-width=".8"/>' +
+      '<line x1="262" y1="256" x2="338" y2="256" stroke="' + P.rule + '" stroke-width=".8"/><line x1="262" y1="284" x2="338" y2="284" stroke="' + P.rule + '" stroke-width=".8"/>' +
+      t(100, 275, fit(wd, 13, 76, .75), P.ink, wd, SERIF + ' font-weight="700" letter-spacing="2"') +
+      t(200, 252, 9.5, P.soft, c.dayCaption, SERIF + ' letter-spacing="2"') +
+      t(200, 298, 52, tho ? 'url(#gold)' : P.accent, c.bigDay, SERIF + ' font-weight="700"') +
+      t(300, 275, fit(c.clock, 13, 76, .72), P.ink, c.clock, SERIF + ' font-weight="700" letter-spacing="1.5"') +
+      t(200, 324, 14, P.ink, c.lunarLine, SERIF + ' font-weight="700"') + t(200, 343, 11.5, P.soft, c.solarLine, SERIF + ' font-style="italic"') + '</g>';
+    var lines = tho ? (placeText ? wrap('Tại ' + placeText, 40, 2) : []) : (c.host ? [c.host].concat(wrap(c.address, 46, 1)) : wrap(c.address, 46, 2));
+    s += divider(tho ? 404 : 364, P.accent);
+    if (lines.length) {
+      if (!tho) s += t(200, 389, 10, P.accent, c.host ? 'TẠI NHÀ' : 'TẠI', SERIF + ' letter-spacing="3"');
+      lines.forEach(function (line, i) {
+        var strong = !tho && i === 0 && c.host;
+        s += t(200, (tho ? 428 : 409) + i * 17, strong ? 13.5 : 12, strong ? '#3E2A18' : P.ink, line, SERIF + (strong ? ' font-weight="700"' : ''));
+      });
+    }
+    s += t(200, tho ? (lines.length > 1 ? 468 : lines.length ? 456 : 432) : lines.length ? 452 : 394, 12, P.title, c.sign, SERIF + ' font-style="italic"');
+    return s;
+  }
+
+  function birthday() {
+    var s = '<defs><linearGradient id="peach" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1E8"/><stop offset="1" stop-color="#FFD9CC"/></linearGradient></defs>' +
+      '<rect width="400" height="500" rx="18" fill="url(#peach)"/><rect x="14" y="14" width="372" height="472" rx="12" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round"/>';
+    [[60, 120, '#F2A33A', 'r'], [330, 140, '#4BA3C7', 'r'], [48, 210, '#E5566B', 'c'], [356, 230, '#7BC47F', 'c'], [40, 300, '#4BA3C7', 'r'], [350, 320, '#F2A33A', 'r'], [70, 420, '#7BC47F', 'c'], [330, 430, '#E5566B', 'c'], [120, 44, '#E5566B', 'r'], [280, 40, '#7BC47F', 'r']].forEach(function (d) {
+      s += d[3] === 'c' ? '<circle cx="' + d[0] + '" cy="' + d[1] + '" r="3" fill="' + d[2] + '"/>' : '<rect x="' + d[0] + '" y="' + d[1] + '" width="7" height="3" fill="' + d[2] + '" transform="rotate(' + ((d[0] % 7) * 15 - 40) + ' ' + d[0] + ' ' + d[1] + ')"/>';
+    });
+    function balloon(x, y, col, k) {
+      return '<g transform="translate(' + x + ' ' + y + ') scale(' + k + ')"><path d="M0 0 C-18 0 -22 -22 -22 -32 C-22 -48 -11 -58 0 -58 C11 -58 22 -48 22 -32 C22 -22 18 0 0 0 Z" fill="' + col + '"/><path d="M-3 4 L0 0 L3 4 Z" fill="' + col + '"/><circle cx="-8" cy="-42" r="5" fill="#fff" opacity=".4"/></g>' +
+        '<path d="M' + x + ' ' + (y + 4) + ' q-6 20 4 40 q8 18 -2 36" fill="none" stroke="#C9A7A0"/>';
+    }
+    s += balloon(62, 96, '#E5566B', 1) + balloon(338, 104, '#F2A33A', .85);
+    s += t(200, 66, 12, '#C2405A', c.eyebrow, SANS + ' font-weight="700" letter-spacing="4"') +
+      t(200, 108, 32, '#8A2B44', c.lead, SERIF + ' font-style="italic"') +
+      t(200, 152, fit(c.name, 38, 300, .6), '#C2405A', c.name, SANS + ' font-weight="800"');
+    if (c.count) {
+      s += '<line x1="200" y1="182" x2="200" y2="194" stroke="#7BC47F" stroke-width="5" stroke-linecap="round"/><path d="M200 166 C206 173 205 180 200 181 C195 180 194 173 200 166 Z" fill="#F2A33A"/>' +
+        '<circle cx="200" cy="240" r="46" fill="#fff"/><circle cx="200" cy="240" r="40" fill="none" stroke="#F2A33A" stroke-width="2" stroke-dasharray="4 4"/>' +
+        t(200, 256, c.count >= 100 ? 40 : 50, '#C2405A', c.count, SANS + ' font-weight="800"') + t(200, 273, 9, '#8A2B44', c.countUnit, SANS + ' font-weight="700" letter-spacing="3"');
+    } else {
+      s += '<g transform="translate(200 236)"><rect x="-46" y="-6" width="92" height="42" rx="8" fill="#fff"/><rect x="-46" y="-6" width="92" height="12" rx="6" fill="#F7B7C2"/><rect x="-30" y="-34" width="60" height="28" rx="6" fill="#fff"/><rect x="-30" y="-34" width="60" height="9" rx="4" fill="#F2A33A"/>' +
+        [-16, 0, 16].map(function (dx) { return '<line x1="' + dx + '" y1="-36" x2="' + dx + '" y2="-48" stroke="#7BC47F" stroke-width="3" stroke-linecap="round"/><circle cx="' + dx + '" cy="-53" r="3.5" fill="#F2A33A"/>'; }).join('') + '</g>';
+    }
+    s += '<rect x="60" y="302" width="280" height="58" rx="29" fill="#fff"/>' + t(200, 326, 15, '#8A2B44', c.dateLine, SANS + ' font-weight="700"') + t(200, 346, 12, '#A35A62', c.dateSub, SANS);
+    var lines = wrap([c.host, c.address].filter(Boolean).join(', '), 42, 2);
+    if (lines.length) {
+      s += t(200, 386, 10, '#C2405A', c.placeLabel || 'TẠI', SANS + ' font-weight="700" letter-spacing="3"');
+      lines.forEach(function (line, i) { s += t(200, 404 + i * 16, 12.5, '#5A2B33', line, SANS); });
+    }
+    wrap(c.sign, 46, 2).forEach(function (line, i) { s += t(200, (lines.length > 1 ? 448 : 438) + i * 16, 13, '#8A2B44', line, SERIF + ' font-style="italic"'); });
+    return s;
+  }
+
+  document.getElementById('art').innerHTML = '<svg class="card" viewBox="0 0 400 500" role="img" aria-label="' + esc(c.eyebrow + ' ' + c.lead + ' ' + c.name) + '">' + (style === 'sinhnhat' ? birthday() : formal()) + '</svg>';
+  document.title = (style === 'sinhnhat' ? 'Mời dự ' : 'Kính mời · ') + c.lead.replace(/^cả nhà về dự |^con cháu về /, '') + ' ' + c.name;
+
+  // Còn mấy ngày.
+  var p = dp;
+  var day = dObj;
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var diff = Math.round((day - today) / 86400000);
+  document.getElementById('count').textContent = diff > 1 ? 'Còn ' + diff + ' ngày' : diff === 1 ? 'Ngày mai' : diff === 0 ? 'Hôm nay' : 'Đã qua ' + (-diff) + ' ngày';
+
+  // Ngày giờ, địa chỉ, lời dặn.
+  var rows = [['Thời gian', (c.time ? c.time + ' · ' : '') + c.weekday + ', ' + p[2] + '/' + p[1] + '/' + p[0] + (style === 'sinhnhat' ? '' : ' (' + c.bigDay + ' ' + c.lunarLine.replace(/ năm .*$/, '') + ' âm lịch)')]];
+  if (placeText) rows.push(['Địa chỉ', placeText.charAt(0).toUpperCase() + placeText.slice(1)]);
+  var html = rows.map(function (r) { return '<div class="row"><div class="k">' + esc(r[0]) + '</div><div class="v">' + esc(r[1]) + '</div></div>'; }).join('');
+  if (c.note) html += '<div class="row"><p class="note">“' + esc(c.note) + '”</p></div>';
+  document.getElementById('info').innerHTML = html;
+
+  // Nút: chỉ đường, gọi, thêm vào lịch.
+  var btns = '';
+  if (c.address) btns += '<a class="btn primary" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(c.address) + '">Chỉ đường</a>';
+  var phone = c.phone.replace(/[^\d+]/g, '');
+  if (phone) btns += '<a class="btn ghost" href="tel:' + esc(phone) + '">Gọi ' + esc(c.host || 'chủ nhà') + '</a>';
+  btns += '<button class="btn ghost' + (c.address && phone ? ' wide' : (c.address || phone ? '' : ' wide')) + '" id="ics" type="button">Thêm vào lịch điện thoại</button>';
+  document.getElementById('btns').innerHTML = btns;
+  document.getElementById('ics').addEventListener('click', function () {
+    var hm = (c.time || '10:00').split(':');
+    function two(n) { return String(n).padStart(2, '0'); }
+    var start = p[0] + two(p[1]) + two(p[2]) + 'T' + two(hm[0]) + two(hm[1]) + '00';
+    var endH = Math.min(23, Number(hm[0]) + 3);
+    var end = p[0] + two(p[1]) + two(p[2]) + 'T' + two(endH) + two(hm[1]) + '00';
+    function icsText(s) { return String(s).replace(/[\\,;]/g, function (m) { return '\\' + m; }).replace(/\n/g, '\\n'); }
+    var title = (style === 'sinhnhat' ? c.lead + ' ' : c.lead.replace(/^cả nhà về dự |^con cháu về /, '').replace(/^./, function (m) { return m.toUpperCase(); }) + ' ') + c.name;
+    var ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Nho Ngay//Thiep//VI', 'BEGIN:VEVENT', 'UID:' + c.date + '-' + Math.random().toString(36).slice(2) + '@nhongay',
+      'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + icsText(title),
+      placeText ? 'LOCATION:' + icsText(placeText) : '', c.note ? 'DESCRIPTION:' + icsText(c.note) : '',
+      'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsText(title), 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    a.download = 'thiep-moi.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  // Lời mời lưu ngày (chỉ một dòng nhỏ cuối trang, không phải quảng cáo).
+  if (c.m && style !== 'sinhnhat') {
+    var save = document.getElementById('save');
+    save.innerHTML = 'Năm sau ' + esc(c.lead.indexOf('thọ') >= 0 ? 'sinh nhật' : 'ngày giỗ') + ' rơi vào ngày nào?<br><a href="' + SHARE_PAGE + '#d=' + encodeURIComponent(c.m) + '">Lưu ngày này để được nhắc mỗi năm</a>';
+    save.style.display = 'block';
+  } else if (c.m) {
+    var s2 = document.getElementById('save');
+    s2.innerHTML = '<a href="' + SHARE_PAGE + '#d=' + encodeURIComponent(c.m) + '">Lưu ngày sinh nhật này để được nhắc mỗi năm</a>';
+    s2.style.display = 'block';
+  }
+
+  document.getElementById('ok').style.display = 'block';
+})();
+</script>
+</body>
+</html>
